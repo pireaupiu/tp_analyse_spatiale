@@ -13,49 +13,41 @@ library(readxl)
 
 ### Exercice 1 ###
 
-#Chargement des données : 
-communes <- st_read("fonds/commune_francemetro_2021.shp", options = "ENCODING=WINDOWS-1252")
-population_19 <- read_excel("donnees/Pop_legales_2019.xlsx")
-
+# Chargement des donnees 
+# Fond communes France metropolitaine
+communes_fm <- st_read("fonds/commune_francemetro_2021.shp", options = "ENCODING=WINDOWS-1252") %>% 
+  select(code,libelle,surf)
+# Import des population légales des communes en 2019
+pop_com_2019<-read_excel("donnees/Pop_legales_2019.xlsx")
 
 ## Question 1 ##
 
-# Dans population_19, Paris est renseigné par arrondissement. 
-# Mais il existe qu'une seule ligne dans le fond communal.
-# Il faut donc homogénéiser la commune de Paris en une seule ligne. 
+# Correction pour la ville de Paris
+pop_com_2019<-pop_com_2019 %>% 
+  mutate(COM=if_else(substr(COM,1,3)=="751","75056",COM)) %>% 
+  group_by(code=COM) %>% 
+  summarise(pop=sum(PMUN19))
+# Jointure
+communes_fm<-communes_fm %>% 
+  left_join(pop_com_2019,
+            by="code") %>% 
+  mutate(densite=pop/surf)
 
-# On crée une table avec uniquement Paris pour avoir sa population totale : 
-paris <- population_19 %>% 
-  filter(COM %in% c(as.character(75101:75120))) %>% 
-  summarise('COM' = '75056', 
-            'NCC' = 'Paris',
-            'PMUN19' = sum(PMUN19))
-
-# On supprime tous les arrondissements de Paris dans poipulation_19 : 
-population_19_sans_paris <- population_19 %>% 
-  filter(!(COM %in% c(as.character(75101:75120))))
-
-# On joint les deux tables précedemment créer et on ordonne par ordre croissant de code commune : 
-pop_19_homogene <- rbind(population_19_sans_paris, paris)
-pop_19_homogene <- pop_19_homogene %>% 
-  arrange(COM)
-
-# Jointure du fond de communes et de la table de population : 
-communes_pop <- pop_19_homogene %>%
-  rename("code" ="COM") %>% 
-  rename("population" = "PMUN19") %>% 
-  select(code, population) %>% 
-  left_join(communes, by = "code")
-
-# Ajout de la variable de densité : 
-communes_pop <- communes_pop %>% 
-  mutate(densite = population / surf)
 
 ## Question 2 ## 
-summary(communes_pop$densite)
+summary(communes_fm$densite)
+hist(communes_fm$densite)
 
 ## Question 3 ## 
-plot(communes_pop, border = FALSE) 
+plot(communes_fm['densite'], border = FALSE) 
 
-## Question 4 ## 
-plot(communes_pop, breaks = "quantile", border = FALSE)
+## Question 4 ##
+plot(communes_fm["densite"], breaks = "quantile", border = FALSE)
+
+plot(communes_fm["densite"], breaks = "jenks", border = FALSE )
+
+plot(communes_fm["densite"], breaks = "sd", border = FALSE)
+
+plot(communes_fm["densite"], breaks = "pretty", border = FALSE)
+
+
