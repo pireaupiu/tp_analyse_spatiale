@@ -24,6 +24,13 @@ communes_Bretagne <- communes %>%
 
 plot(st_geometry(communes_Bretagne))
 
+## ggplot: 
+library(ggplot2)
+ggplot() + 
+  geom_sf(data = communes_Bretagne, fill = "lightblue", col = "grey", alpha=TRUE ) + 
+  theme_void()
+
+
 communes_Bretagne <- communes_Bretagne %>%
   mutate("surf2" = st_area(geometry))
 
