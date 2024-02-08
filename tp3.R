@@ -11,11 +11,14 @@ library(classInt)
 library(leaflet)
 library(readxl)
 
-## Exercice 1 ##
+### Exercice 1 ###
 
 #Chargement des données : 
 communes <- st_read("fonds/commune_francemetro_2021.shp", options = "ENCODING=WINDOWS-1252")
 population_19 <- read_excel("donnees/Pop_legales_2019.xlsx")
+
+
+## Question 1 ##
 
 # Dans population_19, Paris est renseigné par arrondissement. 
 # Mais il existe qu'une seule ligne dans le fond communal.
@@ -40,8 +43,19 @@ pop_19_homogene <- pop_19_homogene %>%
 # Jointure du fond de communes et de la table de population : 
 communes_pop <- pop_19_homogene %>%
   rename("code" ="COM") %>% 
-  select(code, PMUN19) %>% 
+  rename("population" = "PMUN19") %>% 
+  select(code, population) %>% 
   left_join(communes, by = "code")
 
+# Ajout de la variable de densité : 
+communes_pop <- communes_pop %>% 
+  mutate(densite = population / surf)
 
-  
+## Question 2 ## 
+summary(communes_pop$densite)
+
+## Question 3 ## 
+plot(communes_pop, border = FALSE) 
+
+## Question 4 ## 
+plot(communes_pop, breaks = "quantile", border = FALSE)
