@@ -86,7 +86,7 @@ distance_56 <- st_distance(centroid_dept_bretagne[4,], chef_lieu[4,])
 zone_20km <- st_buffer(centroid_dept_bretagne, 20000)
 
 plot(st_geometry(communes_Bretagne))
-plot(zone_20km, add = TRUE)
+plot(st_geometry(zone_20km), add = TRUE)
 
 intersect_20km <- st_intersection(zone_20km, communes_Bretagne)
 
@@ -94,6 +94,16 @@ nb_a_20km <- intersect_20km %>%
   group_by(dep) %>% 
   summarise("nb de communes" = n())
 
+#### Changement du système de projection 
 communes_Bretagne2 <- st_transform(communes_Bretagne, 4326)
 plot(st_geometry(communes_Bretagne2))
 plot(st_geometry(communes_Bretagne)
+     
+# Recalculer l'aire des communes avec le nouveau système de projection : 
+communes_Bretagne2 <- communes_Bretagne2 %>%
+  mutate("surf3" = st_area(geometry))
+
+communes_Bretagne2 <- communes_Bretagne2 %>% 
+  mutate("surf3" =units::set_units(surf3, "km^2"))
+
+#Les surfaces sont lègèrement plus faibles que précedemment.
