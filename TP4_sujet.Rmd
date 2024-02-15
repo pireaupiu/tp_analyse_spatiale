@@ -31,7 +31,7 @@ You can also have a look to [this link](https://mgimond.github.io/Spatial/spatia
 
 Commencer par créer un projet pour cette séance de TP. Vous placerez votre projet dans un répertoire personnel. Ouvrir un nouveau programme R. Vous aurez besoin des packages suivants pour le TP :
 
-```{r}
+```{r chargement des packages}
 # Chargement des packages
 library(dplyr)
 library(sf)
@@ -51,7 +51,7 @@ Vous utiliserez le fond des communes des Iris France entiere ainsi que les donn�
 
 1. Commencez par vous créer votre jeu de données : Sélectionnez la ville de Marseille sur votre fond d'Iris et faire la jointure avec votre jeu de données.
 
-```{r}
+```{r import des données}
 # Import des données
 iris<-st_read("./fonds/iris_franceentiere_2021.shp")
 data<-read.csv2("./donnees/BASE_TD_FILO_DISP_IRIS_2018.csv",sep=";",dec=".")
@@ -67,19 +67,19 @@ marseille<-iris %>%
 
 2. Le système de projection de votre table est en WGS84, convertissez-le en Lambert-93 (EPSG 2154)
 
-```{r}
+```{r changement de système de projection}
 marseille <- st_transform(marseille, 2154)
 ```
 
 
 3. Faites un premier résumé statistique de la variable de revenu médian. Faites également un boxplot du revenu moyen en fonction des arrondissements.
 
-```{r}
+```{r résumé de la table Marseille}
 summary(marseille$DISP_MED18)
 ```
 
 
-```{r}
+```{r Boxplot revenu moyen en fonction des arrondissements}
 box_plot <- ggplot(marseille, aes(x = depcom , y = DISP_MED18))
 
 box_plot +
@@ -90,26 +90,26 @@ box_plot +
 4. Supprimer les valeurs manquantes puis représenter la carte de Marseille en fonction des revenus. Vous pouvez utiliser la fonction plot (n'hésitez pas à utiliser une ou plusieurs méthodes de discrétisation automatique - argument `breaks`). Au vu de la carte, vous semble-t-il y avoir un phénomène spatial dans la distribution des revenus ?
 
 On supprime les valeurs manquantes : 
-```{r}
+```{r suppression des valeurs manquantes}
 marseille_sans_NA <- marseille %>% 
   filter(!is.na(DISP_MED18))
 ```
 
 
 Représentation de Marseille en fonction des revenus : (argument `breaks` :quantile, jenks, sd, pretty)
-```{r}
+```{r représentation carte de Marseille}
 plot(marseille_sans_NA["DISP_MED18"], border = FALSE )
 ```
-```{r}
+```{r carte Marseille : quantile }
 plot(marseille_sans_NA["DISP_MED18"], breaks =  'quantile', border = FALSE )
 ```
-```{r}
+```{r carte Marseille : jenks }
 plot(marseille_sans_NA["DISP_MED18"], breaks =  'jenks', border = FALSE )
 ```
-```{r}
+```{r carte Marseille : sd}
 plot(marseille_sans_NA["DISP_MED18"], breaks =  'sd', border = FALSE )
 ```
-```{r}
+```{r carte Marseille : pretty}
 plot(marseille_sans_NA["DISP_MED18"], breaks =  'pretty', border = FALSE )
 ```
 
@@ -120,7 +120,7 @@ des iris marseillais. On pourra ainsi comparer la carte de la distribution réel
 a. Créez une permutation aléatoire des revenus disponibles médians par iris avec la fonction `sample()` et à partir de la variable `DISP_MED18` du fond des iris de Marseille. 
 Vous stockerez ce vecteur dans une nouvelle variable du fond des iris nommée `DISP_MED18_ALEA`.
 
-```{r}
+```{r randomisation de DISP_MED18}
 marseille_sans_NA$DISP_MED18_ALEA <- sample(marseille_sans_NA$DISP_MED18)
 ```
 
@@ -128,8 +128,23 @@ marseille_sans_NA$DISP_MED18_ALEA <- sample(marseille_sans_NA$DISP_MED18)
 b. représentez sur une carte la distribution géographique de la variable que vous venez de créer. 
 Comparez le résultat avec la carte réalisée sur la distribution réelle. La distribution spatiale réelle des revenus est-elle proche de la distribution aléatoire ?
 
-```{r}
+```{r carte Marseille revenus aléatoires}
 plot(marseille_sans_NA["DISP_MED18_ALEA"], border = FALSE )
+```
+
+
+```{r deux cartes sur une seule sortie}
+g1 <- ggplot() + 
+  geom_sf(marseille_sans_NA, mapping = aes(fill = DISP_MED18)) +
+  scale_fill_continuous(type = "viridis") + 
+  guides(fill = "none") + 
+  theme_void() 
+g2 <- ggplot() + 
+  geom_sf(marseille_sans_NA, mapping = aes(fill = DISP_MED18_ALEA)) + 
+  scale_fill_continuous(type = "viridis") + 
+  theme_void()
+gridExtra::grid.arrange(g1, g2, nrow = 1)
+
 ```
 
 6. Pour corroborer la conclusion du 5., nous allons mesurer et tester le phénomène d'autocorrélation spatiale.
@@ -155,17 +170,17 @@ Extraire la liste des voisins de chaque Iris. Pour cela, vous utiliserez la fonc
 les mouvements de la Reine aux échecs. Prenez connaissance de l'objet créé et réalisez 
 un résumé de l'objet en sortie avec la fonction `summary()`.
 
-```{r}
+```{r liste des voisins}
 voisins <- spdep::poly2nb(marseille_sans_NA)
 ```
 
-```{r}
+```{r résumé des voisins}
 summary(voisins)
 ```
 
 c. Combien de voisins a le quatrième élément de la liste ?
 
-```{r}
+```{r voisin du 4ime élément}
 voisins[4]
 ```
 Le quatrième élément a 4 voisins. 
@@ -177,7 +192,7 @@ L'idée est d'affecter un poids identique à chacun des voisins d'un iris.
 a. Créez une liste de poids à partir de la liste de voisins précédemment créée. 
 Pour cela, utilisez la fonction `spdep::nb2listw()`, avec l'argument `zero.policy=TRUE` pour intégrer les Iris n'ayant potentiellement pas de voisins (par défaut, la fonction exclut les observations sans voisin). 
 
-```{r}
+```{r pondération }
 poids <- spdep::nb2listw(voisins, zero.policy = TRUE)
 ```
 
@@ -204,7 +219,7 @@ a. Créer une variable des revenus disponibles centrés réduits avec la fonctio
 Vous la nommerez `DISP_MED18_STD` et l'ajouterez au fond des iris de Marseille.
 Vous vérifierez que la nouvelle variable est bien centrée (moyenne = 0) et réduite (SD = 1).
 
-```{r}
+```{r standardiasation de la variable `DISP_MED18`}
 marseille_sans_NA$DISP_MED18_STD <- scale(marseille_sans_NA$DISP_MED18)
 mean(marseille_sans_NA$DISP_MED18_STD)
 sd(marseille_sans_NA$DISP_MED18_STD)
@@ -214,13 +229,13 @@ sd(marseille_sans_NA$DISP_MED18_STD)
 b. Dresser le diagramme de Moran avec la fonction `moran.plot()` à partir de la variable standardisée (utiliser la fonction `as.numeric()` si un problème apparaît).
 Le second argument à préciser (`listw`) correspond à la liste des poids des voisins que vous avez créée précédemment.
 
-```{r}
+```{r diagramme de moran}
 moran.plot(as.numeric(marseille_sans_NA$DISP_MED18_STD),poids)
 ```
 
 c. Le diagramme de Moran représente, pour chaque observation (ici un Iris), croise deux informations :  
 - en abscisse, est représenté le revenu médian disponible observé au sein de l'iris (variable centrée réduite);
-- en ordonnées, est représentée la moyenne des revenus médians des voisins de l'iris observé.
+- en ordonnées, est représentée la moyenne pondérée des revenus médians des voisins de l'iris observé.
 
 Interprétez les quatre cadrans du diagramme.
 
@@ -237,14 +252,16 @@ utilisée de la façon suivante : `moran.test(marseille$DISP_MED18_STD, ponderat
 Le dernier argument signifie que la distribution observée est comparée à une distribution 
 aléatoire obtenue par permutation des valeurs observées. 
 
-```{r}
+```{r indicateur de Moran}
 spdep::moran.test(marseille_sans_NA$DISP_MED18_STD, poids, randomisation = TRUE)
 ```
 
 
 b. Interpértez le résultat obtenu : confirme-t-il ou non votre hypothèse ?
+La p_valeur est très faible donc on rejete l'hypothèse de nullité au seuil 5%, donc on peut interpréter l'indice. 
+I > 0 : autocorrélation positive globale dans la ville de Marseille.
+Attention, localement il peut y avoir des phénomènes d'autocorrélation négatives. 
 
-I > 0 : autocorrélation positive. 
 
 10. BONUS - DECOUVRIR LES INDICATEURS D'AUTOCORRELATION LOCAUX.
 
@@ -259,14 +276,28 @@ ou ***I de Moran locaux***.
 a. Calculez les Lisa avec la fonction `spdep::localmoran()` et stockez le résultat 
 dans un objet appelé `mars_rev_lisa`.
 
+```{r calcul des LISA}
+mars_rev_lisa <- spdep::localmoran(as.numeric(marseille_sans_NA$DISP_MED18_STD), poids)
+```
 
 b. Etudiez l'objet obtenu, en utilisant notamment les fonctions `class()`, `str(.,max.level=1)` et 
 `summary()`.
+```{r class LISA}
+class(mars_rev_lisa)
+```
+```{r str LISA}
+str(mars_rev_lisa, max.level = 1)
+```
+
+```{r résumé LISA}
+summary(mars_rev_lisa)
+```
 
 
 c. Quelle est la moyenne des indicateurs locaux ($I_i$)?
 
-
+La moyenne des $I_i$ vaut : 0.70922. 
+Il s'agit de l'indicateur de Moran global. 
 
 d. L'interprétation d'un Lisa est tout à fait similaire à l'indice global. 
 Si l'indicateur local d'un Iris donné est positif, cela signifie qu'il est entouré d'Iris ayant des niveaux de revenus similaires. 
@@ -274,10 +305,23 @@ S'il est négatif, cela indique qu'il est plutôt entouré d'Iris ayant des nive
 
 Combien d'indicateurs locaux sont-ils négatifs ?
 
-
+```{r indicateurs locaux négatifs }
+mars_rev_lisa <- as.data.frame(mars_rev_lisa)
+mars_rev_lisa %>% 
+  filter(Ii < 0) %>% 
+  summarise("nombre de négatif", n())
+```
+Il y a 62 indicateurs locaux négatifs. 
 
 e. Nous cherchons à représenter les Lisa sur une carte des Iris marseillais. Pour cela, ajouter les Lisa comme une nouvelle variable du fond des iris, variable que vous nommerez `LISA`.
 
+```{r}
+marseille_sans_NA$LISA <- mars_rev_lisa$Ii
+```
+
+```{r carte LISA}
+plot(marseille_sans_NA["LISA"], breaks = 'pretty', borders = FALSE)
+```
 
 f. Interprétez ce que vous voyez sur la carte.
 
@@ -285,15 +329,42 @@ f. Interprétez ce que vous voyez sur la carte.
 
 g. Comme pour le I de Moran, il est nécessaire avant d'aller plus loin dans l'interprétation, de savoir si les Lisa calculés sont significativement différents de zéro. Dans l'objet `mars_rev_lisa`, repérez la colonne correspondant à la pvaleur du test associé à la mesure des Lisa et placez-la dans une nouvelle variable du fond des Iris intitulée `LISA_PVAL`.
 
+```{r colonnes LISA}
+colnames(mars_rev_lisa)
+```
 
+La colonne correspondant à la p_valeur est $Pr(z ≠ E(I_i))$. 
+
+```{r ajout de la colonne p_value}
+marseille_sans_NA$LISA_PVAL <- mars_rev_lisa$`Pr(z != E(Ii))`
+```
 
 
 h. Combien de LISA sont-ils significativement différents de zéro pour un niveau de confiance à 95% ?
 
+```{r nb de LISA significativement ≠ 0 }
+signif <- marseille_sans_NA %>% 
+  filter(LISA_PVAL < 0.05)
 
+nrow(signif)
+
+```
+
+Il y a 114 LISA significativement différents de zéro pour un niveau de confiance à 95%. 
+
+
+```{r nb de LISA significativement ≠ 0 : plus rapidement }
+table(mars_rev_lisa[,5] < 0.05)
+```
 
 i. Représentez sur une carte la p-valeur des LISA en choisissant les bornes d'intervalles suivantes : 0,0.01,0.05,0.1,1.
 
+```{r carte p_valeur}
+decoupage <- c(0, 0.01, 0.05, 0.1, 1)
+plot_pvaleur <- ggplot() + 
+  geom_sf(marseille_sans_NA, mapping = aes(fill = "LISA_PVAL", breaks = decoupage))
+plot_pvaleur
+```
 
 
 j. Les zones précédemment repérées sur la carte des LISA font-elles parties des zones 
