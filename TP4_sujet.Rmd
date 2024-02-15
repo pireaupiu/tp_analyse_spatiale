@@ -37,6 +37,7 @@ library(dplyr)
 library(sf)
 library(spdep)
 library(RColorBrewer)
+library(ggplot2)
 
 ```
 
@@ -52,8 +53,8 @@ Vous utiliserez le fond des communes des Iris France entiere ainsi que les donn�
 
 ```{r}
 # Import des données
-iris<-st_read("./fonds/iris_franceentiere_2021/iris_franceentiere_2021.shp")
-data<-read.csv2("./data/BASE_TD_FILO_DISP_IRIS_2018.csv",sep=";",dec=".")
+iris<-st_read("./fonds/iris_franceentiere_2021.shp")
+data<-read.csv2("./donnees/BASE_TD_FILO_DISP_IRIS_2018.csv",sep=";",dec=".")
 
 # Jointure
 marseille<-iris %>% 
@@ -66,15 +67,51 @@ marseille<-iris %>%
 
 2. Le système de projection de votre table est en WGS84, convertissez-le en Lambert-93 (EPSG 2154)
 
+```{r}
+marseille <- st_transform(marseille, 2154)
+```
 
 
 3. Faites un premier résumé statistique de la variable de revenu médian. Faites également un boxplot du revenu moyen en fonction des arrondissements.
 
+```{r}
+summary(marseille$DISP_MED18)
+```
+
+
+```{r}
+box_plot <- ggplot(marseille, aes(x = depcom , y = DISP_MED18))
+
+box_plot +
+    geom_boxplot()
+```
 
 
 4. Supprimer les valeurs manquantes puis représenter la carte de Marseille en fonction des revenus. Vous pouvez utiliser la fonction plot (n'hésitez pas à utiliser une ou plusieurs méthodes de discrétisation automatique - argument `breaks`). Au vu de la carte, vous semble-t-il y avoir un phénomène spatial dans la distribution des revenus ?
 
+On supprime les valeurs manquantes : 
+```{r}
+marseille_sans_NA <- marseille %>% 
+  filter(!is.na(DISP_MED18))
+```
 
+
+Représentation de Marseille en fonction des revenus : (argument `breaks` :quantile, jenks, sd, pretty)
+```{r}
+plot(marseille_sans_NA["DISP_MED18"], border = FALSE )
+```
+```{r}
+plot(marseille_sans_NA["DISP_MED18"], breaks =  'quantile', border = FALSE )
+```
+```{r}
+plot(marseille_sans_NA["DISP_MED18"], breaks =  'jenks', border = FALSE )
+```
+```{r}
+plot(marseille_sans_NA["DISP_MED18"], breaks =  'sd', border = FALSE )
+```
+```{r}
+plot(marseille_sans_NA["DISP_MED18"], breaks =  'pretty', border = FALSE )
+```
 
 5. Pour nous faire une première idée de la dimension spatiale de la distribution des revenus,
 nous allons représenter les mêmes revenus mais distribués de manière aléatoire au sein
@@ -83,11 +120,17 @@ des iris marseillais. On pourra ainsi comparer la carte de la distribution réel
 a. Créez une permutation aléatoire des revenus disponibles médians par iris avec la fonction `sample()` et à partir de la variable `DISP_MED18` du fond des iris de Marseille. 
 Vous stockerez ce vecteur dans une nouvelle variable du fond des iris nommée `DISP_MED18_ALEA`.
 
+```{r}
+marseille_sans_NA$DISP_MED18_ALEA <- sample(marseille_sans_NA$DISP_MED18)
+```
+
 
 b. représentez sur une carte la distribution géographique de la variable que vous venez de créer. 
 Comparez le résultat avec la carte réalisée sur la distribution réelle. La distribution spatiale réelle des revenus est-elle proche de la distribution aléatoire ?
 
-
+```{r}
+plot(marseille_sans_NA["DISP_MED18_ALEA"], border = FALSE )
+```
 
 6. Pour corroborer la conclusion du 5., nous allons mesurer et tester le phénomène d'autocorrélation spatiale.
 
@@ -98,6 +141,7 @@ d'*autocorrélation négative* si des voisins ont tendance à prendre des valeur
 
 a. Quel type d'autocorrélation spatiale, le phénomène étudié semble-t-il avoir ?
 
+=> autocorrélation positive 
 
 b. Pour étudier le phénomène, il nous faut construire une matrice de voisinage. 
 Il existe plusieurs façons de définir le voisinage de nos iris. Dans un premier temps,
@@ -111,8 +155,20 @@ Extraire la liste des voisins de chaque Iris. Pour cela, vous utiliserez la fonc
 les mouvements de la Reine aux échecs. Prenez connaissance de l'objet créé et réalisez 
 un résumé de l'objet en sortie avec la fonction `summary()`.
 
+```{r}
+voisins <- spdep::poly2nb(marseille_sans_NA)
+```
+
+```{r}
+summary(voisins)
+```
 
 c. Combien de voisins a le quatrième élément de la liste ?
+
+```{r}
+voisins[4]
+```
+Le quatrième élément a 4 voisins. 
 
 
 7. Nous allons transformer la matrice de contiguité en une matrice de pondérations. 
@@ -121,14 +177,25 @@ L'idée est d'affecter un poids identique à chacun des voisins d'un iris.
 a. Créez une liste de poids à partir de la liste de voisins précédemment créée. 
 Pour cela, utilisez la fonction `spdep::nb2listw()`, avec l'argument `zero.policy=TRUE` pour intégrer les Iris n'ayant potentiellement pas de voisins (par défaut, la fonction exclut les observations sans voisin). 
 
-
+```{r}
+poids <- spdep::nb2listw(voisins, zero.policy = TRUE)
+```
 
 b. Prenez connaissance de l'objet créé avec la fonction `str()` et l'argument `max.level = 1` et réalisant un résumé de la liste avec la fonction `summary()`.
 
+```{r}
+str(poids, max.level = 1)
+```
 
+```{r}
+summary(poids)
+```
 
 c. Vérifiez que la somme des pondérations associées à chaque pondération est égale à 1.
 
+```{r}
+poids$weights[4]
+```
 
 
 8. Une autre façon très visuelle de vérifier la présence d'une autocorrélation est de dresser le diagramme de Moran. La matrice de pondération calculée en 7. va nous permettre de le calculer.
@@ -137,11 +204,19 @@ a. Créer une variable des revenus disponibles centrés réduits avec la fonctio
 Vous la nommerez `DISP_MED18_STD` et l'ajouterez au fond des iris de Marseille.
 Vous vérifierez que la nouvelle variable est bien centrée (moyenne = 0) et réduite (SD = 1).
 
+```{r}
+marseille_sans_NA$DISP_MED18_STD <- scale(marseille_sans_NA$DISP_MED18)
+mean(marseille_sans_NA$DISP_MED18_STD)
+sd(marseille_sans_NA$DISP_MED18_STD)
+```
 
 
 b. Dresser le diagramme de Moran avec la fonction `moran.plot()` à partir de la variable standardisée (utiliser la fonction `as.numeric()` si un problème apparaît).
 Le second argument à préciser (`listw`) correspond à la liste des poids des voisins que vous avez créée précédemment.
 
+```{r}
+moran.plot(as.numeric(marseille_sans_NA$DISP_MED18_STD),poids)
+```
 
 c. Le diagramme de Moran représente, pour chaque observation (ici un Iris), croise deux informations :  
 - en abscisse, est représenté le revenu médian disponible observé au sein de l'iris (variable centrée réduite);
@@ -152,6 +227,7 @@ Interprétez les quatre cadrans du diagramme.
 
 d. D'après le diagramme de Moran, les revenus médians semblent-ils autocorrélés spatialement ? Si oui, l'autocorrélation vous semble-t-elle positive ou négative ?
 
+Autocorrélation positive. 
 
 9. Il existe une mesure globale de l'autocorrélation spatiale d'un phénomène. Il s'agit du 
 **I de Moran**. 
@@ -161,10 +237,14 @@ utilisée de la façon suivante : `moran.test(marseille$DISP_MED18_STD, ponderat
 Le dernier argument signifie que la distribution observée est comparée à une distribution 
 aléatoire obtenue par permutation des valeurs observées. 
 
+```{r}
+spdep::moran.test(marseille_sans_NA$DISP_MED18_STD, poids, randomisation = TRUE)
+```
+
 
 b. Interpértez le résultat obtenu : confirme-t-il ou non votre hypothèse ?
 
-
+I > 0 : autocorrélation positive. 
 
 10. BONUS - DECOUVRIR LES INDICATEURS D'AUTOCORRELATION LOCAUX.
 
